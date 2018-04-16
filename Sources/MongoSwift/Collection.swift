@@ -25,15 +25,20 @@ public struct AggregateOptions: BsonEncodable {
     /// The index to use for the aggregation. The hint does not apply to $lookup and $graphLookup stages.
     // let hint: Optional<(String | Document)>
 
+    /// A ReadConcern to use for this operation. 
+    let readConcern: ReadConcern?
+
     /// Convenience initializer allowing any/all parameters to be optional
     public init(allowDiskUse: Bool? = nil, batchSize: Int32? = nil, bypassDocumentValidation: Bool? = nil,
-                collation: Document? = nil, maxTimeMS: Int64? = nil, comment: String? = nil) {
+                collation: Document? = nil, comment: String? = nil, maxTimeMS: Int64? = nil,
+                readConcern: ReadConcern? = nil) {
         self.allowDiskUse = allowDiskUse
         self.batchSize = batchSize
         self.bypassDocumentValidation = bypassDocumentValidation
         self.collation = collation
-        self.maxTimeMS = maxTimeMS
         self.comment = comment
+        self.maxTimeMS = maxTimeMS
+        self.readConcern = readConcern
     }
 }
 
@@ -53,11 +58,16 @@ public struct CountOptions: BsonEncodable {
     /// The number of documents to skip before counting.
     let skip: Int64?
 
+    /// A ReadConcern to use for this operation. 
+    let readConcern: ReadConcern?
+
     /// Convenience initializer allowing any/all parameters to be optional
-    public init(collation: Document? = nil, limit: Int64? = nil, maxTimeMS: Int64? = nil, skip: Int64? = nil) {
+    public init(collation: Document? = nil, limit: Int64? = nil, maxTimeMS: Int64? = nil,
+                readConcern: ReadConcern? = nil, skip: Int64? = nil) {
         self.collation = collation
         self.limit = limit
         self.maxTimeMS = maxTimeMS
+        self.readConcern = readConcern
         self.skip = skip
     }
 }
@@ -69,10 +79,14 @@ public struct DistinctOptions: BsonEncodable {
     /// The maximum amount of time to allow the query to run.
     let maxTimeMS: Int64?
 
+    /// A ReadConcern to use for this operation. 
+    let readConcern: ReadConcern?
+
     /// Convenience initializer allowing any/all parameters to be optional
-    public init(collation: Document? = nil, maxTimeMS: Int64? = nil) {
+    public init(collation: Document? = nil, maxTimeMS: Int64? = nil, readConcern: ReadConcern? = nil) {
         self.collation = collation
         self.maxTimeMS = maxTimeMS
+        self.readConcern = readConcern
     }
 }
 
@@ -167,12 +181,15 @@ public struct FindOptions: BsonEncodable {
     /// The order in which to return matching documents.
     let sort: Document?
 
+    /// A ReadConcern to use for this operation. 
+    let readConcern: ReadConcern?
+
     /// Convenience initializer allowing any/all parameters to be optional
     public init(allowPartialResults: Bool? = nil, batchSize: Int32? = nil, collation: Document? = nil,
                 comment: String? = nil, limit: Int64? = nil, max: Document? = nil, maxAwaitTimeMS: Int64? = nil,
                 maxScan: Int64? = nil, maxTimeMS: Int64? = nil, min: Document? = nil, noCursorTimeout: Bool? = nil,
-                projection: Document? = nil, returnKey: Bool? = nil, showRecordId: Bool? = nil, skip: Int64? = nil,
-                sort: Document? = nil) {
+                projection: Document? = nil, readConcern: ReadConcern? = nil, returnKey: Bool? = nil,
+                showRecordId: Bool? = nil, skip: Int64? = nil, sort: Document? = nil) {
         self.allowPartialResults = allowPartialResults
         self.batchSize = batchSize
         self.collation = collation
@@ -185,6 +202,7 @@ public struct FindOptions: BsonEncodable {
         self.min = min
         self.noCursorTimeout = noCursorTimeout
         self.projection = projection
+        self.readConcern = readConcern
         self.returnKey = returnKey
         self.showRecordId = showRecordId
         self.skip = skip
@@ -464,6 +482,13 @@ public class MongoCollection {
         return String(cString: mongoc_collection_get_name(self._collection))
     }
 
+    /// The readConcern set on this collection.
+    public var readConcern: ReadConcern {
+        // per libmongoc docs, we don't need to handle freeing this ourselves
+        let readConcern = mongoc_collection_get_read_concern(self._collection)
+        return ReadConcern(readConcern)
+    }
+
     /**
         Initializes a new MongoCollection instance, not meant to be instantiated directly
      */
@@ -571,7 +596,8 @@ public class MongoCollection {
      *
      * - Returns: A 'MongoCursor' containing the distinct values for the specified criteria
      */
-    public func distinct(fieldName: String, filter: Document, options: DistinctOptions? = nil) throws -> MongoCursor {
+    public func distinct(fieldName: String, filter: Document = [:],
+                         options: DistinctOptions? = nil) throws -> MongoCursor {
         guard let client = self._client else {
             throw MongoError.invalidClient()
         }
