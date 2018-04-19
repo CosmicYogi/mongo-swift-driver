@@ -199,7 +199,7 @@ final class ReadWriteConcernTests: XCTestCase {
                 let valid: Bool = try test.get("valid")
                 if let rcToUse = test["readConcern"] as? Document {
                     let rc = try ReadConcern(rcToUse)
-                    let opts = try ReadConcern.append(rc, to: Document(), callerRC: nil)
+                    let opts = try ReadConcern.append(rc, to: Document(), callerRC: ReadConcern())
                     let rcToSend = test["readConcernDocument"] as? Document
                     // if expected is empty, make sure actual is
                     if rcToSend == [:] {
