@@ -12,6 +12,8 @@ public struct RunCommandOptions: BsonEncodable {
         self.readConcern = readConcern
         self.session = session
     }
+
+    public var skipFields: [String] { return ["readConcern"] }
 }
 
 public struct ListCollectionsOptions: BsonEncodable {
@@ -232,7 +234,7 @@ public class MongoDatabase {
      */
     public func runCommand(_ command: Document, options: RunCommandOptions? = nil) throws -> Document {
         let encoder = BsonEncoder()
-        let opts = try encoder.encode(options)
+        let opts = try ReadConcern.append(options?.readConcern, to: try encoder.encode(options), callerRC: self.readConcern)
         let reply = Document()
         var error = bson_error_t()
         if !mongoc_database_command_with_opts(self._database, command.data, nil, opts?.data, reply.data, &error) {

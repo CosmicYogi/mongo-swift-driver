@@ -26,7 +26,7 @@ public protocol BsonEncodable: BsonValue {
 extension BsonEncodable {
     public var bsonType: BsonType { return .document }
     public func encode(to data: UnsafeMutablePointer<bson_t>, forKey key: String) throws {
-        // Use a BsonEncoder to get a Document, and then call Document.bsonAppend. 
+        // Use a BsonEncoder to get a Document, and then call Document.encode. 
         let encoder = BsonEncoder()
         if let doc = try encoder.encode(self) {
             try doc.encode(to: data, forKey: key)
@@ -123,8 +123,6 @@ public class BsonEncoder {
     */
     public func encode(_ value: BsonValue?, forKey key: String) throws {
         if let v = value {
-            // special case, ignore a ReadConcern with no level (default)
-            if let rc = v as? ReadConcern, rc.level == nil { return }
             var container = _encoder.container()
             try container.encode(v, forKey: key)
         } else if self.nilEncodingStrategy == .include {

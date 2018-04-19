@@ -40,6 +40,8 @@ public struct AggregateOptions: BsonEncodable {
         self.maxTimeMS = maxTimeMS
         self.readConcern = readConcern
     }
+
+    public var skipFields: [String] { return ["readConcern"] }
 }
 
 public struct CountOptions: BsonEncodable {
@@ -70,6 +72,8 @@ public struct CountOptions: BsonEncodable {
         self.readConcern = readConcern
         self.skip = skip
     }
+
+    public var skipFields: [String] { return ["readConcern"] }
 }
 
 public struct DistinctOptions: BsonEncodable {
@@ -88,6 +92,8 @@ public struct DistinctOptions: BsonEncodable {
         self.maxTimeMS = maxTimeMS
         self.readConcern = readConcern
     }
+
+    public var skipFields: [String] { return ["readConcern"] }
 }
 
 public enum CursorType {
@@ -208,6 +214,8 @@ public struct FindOptions: BsonEncodable {
         self.skip = skip
         self.sort = sort
     }
+
+    public var skipFields: [String] { return ["readConcern"] }
 }
 
 public struct InsertOneOptions: BsonEncodable {
@@ -530,7 +538,7 @@ public class MongoCollection {
      */
     public func find(_ filter: Document = [:], options: FindOptions? = nil) throws -> MongoCursor {
         let encoder = BsonEncoder()
-        let opts = try encoder.encode(options)
+        let opts = try ReadConcern.append(options?.readConcern, to: try encoder.encode(options), callerRC: self.readConcern)
         guard let cursor = mongoc_collection_find_with_opts(self._collection, filter.data, opts?.data, nil) else {
             throw MongoError.invalidResponse()
         }
@@ -551,7 +559,7 @@ public class MongoCollection {
      */
     public func aggregate(_ pipeline: [Document], options: AggregateOptions? = nil) throws -> MongoCursor {
         let encoder = BsonEncoder()
-        let opts = try encoder.encode(options)
+        let opts = try ReadConcern.append(options?.readConcern, to: try encoder.encode(options), callerRC: self.readConcern)
         let pipeline: Document = ["pipeline": pipeline]
         guard let cursor = mongoc_collection_aggregate(
             self._collection, MONGOC_QUERY_NONE, pipeline.data, opts?.data, nil) else {
@@ -574,7 +582,7 @@ public class MongoCollection {
      */
     public func count(_ filter: Document = [:], options: CountOptions? = nil) throws -> Int {
         let encoder = BsonEncoder()
-        let opts = try encoder.encode(options)
+        let opts = try ReadConcern.append(options?.readConcern, to: try encoder.encode(options), callerRC: self.readConcern)
         var error = bson_error_t()
         // because we already encode skip and limit in the options,
         // pass in 0s so we don't get duplicate parameter errors.
@@ -609,7 +617,7 @@ public class MongoCollection {
             "query": filter
         ]
         let encoder = BsonEncoder()
-        let opts = try encoder.encode(options)
+        let opts = try ReadConcern.append(options?.readConcern, to: try encoder.encode(options), callerRC: self.readConcern)
 
         let reply = Document()
         var error = bson_error_t()

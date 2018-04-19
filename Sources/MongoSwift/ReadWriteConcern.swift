@@ -10,7 +10,7 @@ public enum ReadConcernLevel: String {
 }
 
 /// A class to represent a MongoDB read concern.
-public class ReadConcern: BsonEncodable {
+public class ReadConcern {
 
     /// A pointer to a mongoc_read_concern_t
     internal var _readConcern: OpaquePointer?
@@ -63,8 +63,23 @@ public class ReadConcern: BsonEncodable {
         }
     }
 
-    public func encode(to encoder: BsonEncoder) throws {
-        try encoder.encode(self.level, forKey: "level")
+    /// Since we have to follow certain rules about whether to include or omit a ReadConcern,
+    /// this function handles obeying those, factoring in the ReadConcern, if any, for
+    /// whatever object is calling this function. It returns a final options Document for the
+    /// calling function to use, or nil if the Document ends up being empty.
+    internal static func append(_ readConcern: ReadConcern?, to opts: Document?, callerRC: ReadConcern?) throws -> Document? {
+        // if the user didn't specify a readConcern, then we just want to use
+        // whatever the default is for the caller. 
+        guard let rc = readConcern else { return opts }
+
+        // the caller has no RC set or is using the server's default RC, 
+        // and we are also using default, don't append anything
+        if (callerRC == nil || callerRC?.level == nil) && rc.level == nil { return opts }
+
+        // otherwise other us or the caller is using a non-default, so we need to append it
+        let output = opts ?? Document() // create base opts if they don't exist
+        try rc.append(to: output)
+        return output
     }
 
     deinit {

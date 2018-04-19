@@ -147,12 +147,6 @@ final class ReadWriteConcernTests: XCTestCase {
         let options3 = RunCommandOptions(readConcern: try ReadConcern("blah"))
         expect(try db.runCommand(command, options: options3)).to(throwError())
 
-        // verify that options are serialized as we would expect
-    	let encoder = BsonEncoder()
-    	expect(try encoder.encode(options1)).to(equal(["readConcern": ["level": "local"] as Document] as Document))
-        expect(try encoder.encode(options2)).to(beNil())
-        expect(try encoder.encode(options3)).to(equal(["readConcern": ["level": "blah"] as Document] as Document))
-
         // try various command + read concern pairs to make sure they work
         expect(try coll.find(options: FindOptions(readConcern: try ReadConcern(.local)))).toNot(throwError())
 
@@ -187,7 +181,6 @@ final class ReadWriteConcernTests: XCTestCase {
 	            } else {
 	            	expect(try MongoClient(connectionString: uri)).to(throwError())
 	            }
-                print("OK")
             }
     	}
     }
@@ -204,18 +197,16 @@ final class ReadWriteConcernTests: XCTestCase {
                 let description: String = try test.get("description")
                 if description == "WTimeoutMS as an invalid number" { continue }
                 let valid: Bool = try test.get("valid")
-
                 if let rcToUse = test["readConcern"] as? Document {
-                    // encode the RC to use as a document
-                    let encoded = try encoder.encode(try ReadConcern(rcToUse))
-
+                    let rc = try ReadConcern(rcToUse)
+                    let opts = try ReadConcern.append(rc, to: Document(), callerRC: nil)
                     let rcToSend = test["readConcernDocument"] as? Document
-                    // if it's empty, we shouldn't expect anything to be encoded from the struct
+                    // if expected is empty, make sure actual is
                     if rcToSend == [:] {
-                        expect(encoded).to(beNil())
-                    // otherwise the encoded struct should match the expected doc to send to server
+                        expect(opts).to(equal([:] as Document))
+                    // otherwise check that documents match
                     } else {
-                        expect(encoded).to(equal(rcToSend))
+                        expect(opts).to(equal(["readConcern": rcToSend] as Document))
                     }
 
                 } else if let wcToUse = test["writeConcern"] as? Document {
